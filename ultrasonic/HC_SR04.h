@@ -5,6 +5,7 @@
 
 #define CM true
 #define INCH false
+#define CM2MKS(CM) CM*58
 
 class HC_SR04 {
   public:
@@ -15,6 +16,7 @@ class HC_SR04 {
     bool isFinished(){ return _finished; }
     unsigned int getRange(bool units=CM);
     static HC_SR04* instance(){ return _instance; }
+    unsigned int HC_SR04::getRangeRaw();
     
   private:
     static void _echo_isr();
