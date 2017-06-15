@@ -27,6 +27,10 @@ unsigned int HC_SR04::getRange(bool units){
   return (_end-_start)/((units)?58:148);
 }
 
+unsigned int HC_SR04::getRangeRaw(){
+  return (_end-_start);
+}
+
 void HC_SR04::_echo_isr(){
   HC_SR04* _this=HC_SR04::instance();
   
