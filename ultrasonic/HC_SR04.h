@@ -9,21 +9,21 @@
 
 class HC_SR04 {
   public:
-    HC_SR04(int trigger, int echo, int interrupt, int max_dist=200);
-    
-    void begin();
-    void start();
-    bool isFinished(){ return _finished; }
-    unsigned int getRange(bool units=CM);
-    static HC_SR04* instance(){ return _instance; }
-    unsigned int HC_SR04::getRangeRaw();
-    
-  private:
-    static void _echo_isr();
-    
+    HC_SR04(int trigger, int echo, int interrupt=0, int max_dist=200);
+
+    virtual void begin();
+    virtual void start();
+    virtual bool isFinished(){ return _finished; }
+    virtual unsigned int getRange(bool units=CM);
+    virtual unsigned int getRangeRaw();
+
     int _trigger, _echo, _int, _max;
     volatile unsigned long _start, _end;
     volatile bool _finished;
+
+  private:
+    static HC_SR04* instance(){ return _instance; }
+    static void _echo_isr();
     static HC_SR04* _instance;
 };
 
