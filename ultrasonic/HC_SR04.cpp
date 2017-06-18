@@ -1,12 +1,14 @@
-#include "HC_SR04.h"
+  #include "HC_SR04.h"
 
 //HC_SR04 *HC_SR04::_instance=NULL;
 HC_SR04 *HC_SR04::_instance(NULL);
 
-HC_SR04::HC_SR04(int trigger, int echo, int interrupt, int max_dist)
+HC_SR04::HC_SR04(int trigger, int echo, int interrupt, int max_dist, void (*exec_func)(int, unsigned int))
     : _trigger(trigger), _echo(echo), _int(interrupt), _max(max_dist), _finished(false)
 {
-  if(_instance==0) _instance=this;    
+  if(_instance==0)
+    _instance=this;    
+  _exec_func = exec_func;
 }
 
 void HC_SR04::begin(){
@@ -41,6 +43,8 @@ void HC_SR04::_echo_isr(){
     case LOW:
       _this->_end=micros();
       _this->_finished=true;
+      if (_this->_exec_func != NULL)
+        _this->_exec_func(_this->_echo, _this->_end - _this->_start);
       break;
   }   
 }

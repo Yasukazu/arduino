@@ -3,10 +3,12 @@
 //HC_SR04 *SubHC_SR04::_instance=NULL;
 SubHC_SR04 *SubHC_SR04::_instance(NULL);
 
-SubHC_SR04::SubHC_SR04(int trigger, int echo, int interrupt, int max_dist)
+SubHC_SR04::SubHC_SR04(int trigger, int echo, int interrupt, int max_dist, void (*exec_func)(int, unsigned int))
     : HC_SR04(trigger, echo, interrupt, max_dist)
 {
-  if(_instance==0) _instance=this;
+  if(_instance==0)
+    _instance=this;
+  _exec_func = exec_func;
 }
 
 void SubHC_SR04::begin(){
@@ -24,11 +26,11 @@ void SubHC_SR04::start(){
 }
 
 unsigned int SubHC_SR04::getRange(bool units){
-  return (_end-_start)/((units)?58:148);
+  return HC_SR04::getRange(units);
 }
 
 unsigned int SubHC_SR04::getRangeRaw(){
-  return (_end-_start);
+  return HC_SR04::getRangeRaw();
 }
 
 void SubHC_SR04::_echo_isr(){
@@ -41,6 +43,8 @@ void SubHC_SR04::_echo_isr(){
     case LOW:
       _this->_end=micros();
       _this->_finished=true;
+      if (_this->_exec_func != NULL)
+        _this->_exec_func(_this->_echo, _this->_end - _this->_start);
       break;
   }
 }
