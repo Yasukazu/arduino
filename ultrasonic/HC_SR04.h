@@ -1,3 +1,4 @@
+
 #ifndef HC_SR04_H
 #define HC_SR04_H
 
@@ -9,20 +10,20 @@
 
 class HC_SR04 {
   public:
-    HC_SR04(int trigger, int echo, int interrupt=0, int max_dist=200, void(*exec_func)(int, unsigned int)=NULL);
+    HC_SR04(int trigger, int echo);//, int interrupt=0, int max_dist=200);
 
     virtual void begin();
     virtual void start();
-    virtual bool isFinished(){ return _finished; }
-    virtual unsigned int getRange(bool units=CM);
-    virtual unsigned int getRangeRaw();
+    bool isFinished(){ return _finished; }
+    unsigned int getRange(bool units=CM);
+    unsigned int getRangeRaw();
+    static int getInt() { return _int;};
 
   protected:
-    int _trigger, _echo, _int, _max;
+    int _trigger, _echo, _max;
     volatile unsigned long _start, _end;
     volatile bool _finished;
-    void (*_exec_func)(int, unsigned int); // _echo, _end-_start
-
+    static int _int;
     static HC_SR04* instance(){ return _instance; }
     static void _echo_isr();
     static HC_SR04* _instance;
