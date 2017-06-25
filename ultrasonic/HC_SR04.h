@@ -1,4 +1,3 @@
-
 #ifndef HC_SR04_H
 #define HC_SR04_H
 
@@ -9,24 +8,21 @@
 #define CM2MKS(CM) CM*58
 
 class HC_SR04 {
-  public:
-    HC_SR04(int trigger, int echo);//, int interrupt=0, int max_dist=200);
-
-    virtual void begin();
-    virtual void start();
-    bool isFinished(){ return _finished; }
-    unsigned int getRange(bool units=CM);
-    unsigned int getRangeRaw();
-    static int getInt() { return _int;};
-
-  protected:
-    int _trigger, _echo, _max;
-    volatile unsigned long _start, _end;
-    volatile bool _finished;
     static int _int;
+    static HC_SR04* _instance;
     static HC_SR04* instance(){ return _instance; }
     static void _echo_isr();
-    static HC_SR04* _instance;
+    int _trigger, _echo;  
+    volatile unsigned long _start, _end;
+    volatile bool _finished;
+  public:
+    HC_SR04(int trigger, int echo);//, int interrupt=0, int max_dist=200);
+    virtual void begin();
+    virtual void start();
+    virtual bool isFinished(){ return _finished; }
+    virtual unsigned int getRange(bool units=CM) {   return (_end - _start) / ((units) ? 58 : 148); }
+    virtual unsigned int getRangeRaw(){return (_end - _start); }
+    static int getInt() { return _int;};
 };
 
 #endif
