@@ -4,7 +4,7 @@ int SubHC_SR04::_int(0);
 SubHC_SR04 *SubHC_SR04::_instance(NULL);
 
 SubHC_SR04::SubHC_SR04(int trigger, int echo)
-    : HC_SR04(trigger, echo), _trigger(trigger), _echo(echo), _finished(false)
+ : HC_SR04(trigger, echo)
 {
 }
 
@@ -13,15 +13,8 @@ void SubHC_SR04::begin(){
   digitalWrite(_trigger, LOW);
   pinMode(_echo, INPUT);  
   _int = digitalPinToInterrupt(_echo);
-  attachInterrupt(_int, _echo_isr, CHANGE); // attachInterrupt(_int,
+  attachInterrupt(_int, _echo_isr, CHANGE);
   _instance = this;    
-}
-
-void SubHC_SR04::start(){
-  _finished=false;
-  digitalWrite(_trigger, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(_trigger, LOW);  
 }
 
 void SubHC_SR04::_echo_isr(){
