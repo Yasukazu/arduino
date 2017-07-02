@@ -1,154 +1,119 @@
 #include "SubHC_SR04.h"
+#include "Update.h"
+#include "BlinkOutport.h"
+#include "RangeOutput.h"
 
-#define ECHO_PIN 2
-#define TRIG_PIN 4
+#define arraysizeof(aa) sizeof(aa)/sizeof((aa)[0])
+#define ECHO1PIN 2
+#define TRIG1PIN 4
 
 #define ECHO2PIN 3
 #define TRIG2PIN 7
-
+#define BETWEEN_MS 1000
 #define FRONT_LED_PIN 12
-#define SIDE_LED_PIN 12
+#define SIDE_LED_PIN 13
+#define LED_BLINK_MS 500
 //#define OBLED 13
-#define NEAR1 20
-#define FAR1 30
+#define FRONT_NEAR 30
+#define SIDE_NEAR 20
+#define SIDE_FAR 30
 
-#define INTERVAL 5000 //ms
+#define INTERVAL 1000 //ms
+#define NEAR_INTVL 200
+#define FAR_INTVL 400
+#define valPrint(MSG, VAL) Serial.print(MSG),Serial.println(VAL)
+#define objMtdPrint(MSG, OBJ, MTD) Serial.print(MSG), Serial.println(OBJ.MTD())
 
-class Outport {
-  byte port;
-  int level;
-  public:
-  Outport(byte p) : port(p), level(LOW) {
-    pinMode(p, OUTPUT);
-    digitalWrite(p, LOW);
-  };
-  void set(int l) {
-    switch(l) {
-      case LOW:
-      if (level != l) {
-        level = l;
-        digitalWrite(port, l);
-      }
-      return;
-      case HIGH:
-      if (level != l) {
-        level = l;
-        digitalWrite(port, l);
-      }
-      return;    
-    }
-  }
-  void on() {
-    if (level != HIGH) {
-      digitalWrite(port, HIGH);
-      level = HIGH;
-    }
-  }
-  void off() {
-    if (level != LOW) {
-      digitalWrite(port, LOW);
-      level = LOW;
-    }
-  }
-  int get() { return level;}
-};
-//Outport ledPort(OBLED);
-
-class RangeOutport {
-  Outport _port;
-  unsigned int _low;
-  unsigned int _high;
-  public:
-  RangeOutport(byte port, unsigned int low, unsigned int high) : _port(port),_low(low),_high(high) {}
-  void update(unsigned int range) {
-    if (range < _low || range > _high) {
-      _port.off();
-    }
-    else if (range >= _low && range <= _high) {
-      _port.on();
-    }
-  }
-};
-
-class RengeHC_SR04 : public HC_SR04 {
-  RangeOutport _port;
-  static int _int;
-  static RengeHC_SR04* _instance;
-  static RengeHC_SR04* instance(){ return _instance; }
-  static void _echo_isr(){
-    RengeHC_SR04 *_this = instance();  
-    switch(digitalRead(_this->_echo)) {
-      case HIGH:
-        _this->_start = micros();
-        break;
-      case LOW:
-        _this->_end = micros();
-        _this->_port.update(_this->getRangeRaw());
-        /*
-        if (_this->getRangeRaw() < CM2MKS(NEAR1)){
-          ledPort.set(HIGH);
-        }
-        else if (_this->getRangeRaw() >= CM2MKS(NEAR2)){
-          ledPort.set(LOW);
-        } */
-        _this->_finished = true;
-        break;
-    }   
-  }
-  public:
-  RengeHC_SR04(int trigger, int echo,  byte port, unsigned int low, unsigned int high) : _port(port, low, high),HC_SR04(trigger, echo) {}
-  virtual void begin(){
-    pinMode(_trigger, OUTPUT);
-    digitalWrite(_trigger, LOW);
-    pinMode(_echo, INPUT);  
-    _int = digitalPinToInterrupt(_echo);
-    attachInterrupt(_int, _echo_isr, CHANGE);
-    _instance = this;    
-  }
-};
-RengeHC_SR04 *RengeHC_SR04::_instance(NULL);
-int RengeHC_SR04::_int(0);
-RengeHC_SR04 sensor(TRIG_PIN, ECHO_PIN, FRONT_LED_PIN, CM2MKS(NEAR1), CM2MKS(FAR1));
-//HC_SR04 sensor(TRIG_PIN, ECHO_PIN);
-SubHC_SR04 sensor2(TRIG2PIN, ECHO2PIN);
-HC_SR04 *sensors[] = {&sensor, &sensor2};
-
-
+BlinkOutport sideOutPort(SIDE_LED_PIN);
+BlinkOutport frontOutPort(FRONT_LED_PIN, NEAR_INTVL);
+RangeOutput frontRangeOutput(CM2MKS(FRONT_NEAR));
+RangeOutput sideRangeOutput(CM2MKS(SIDE_NEAR), CM2MKS(SIDE_FAR));
+HC_SR04 frontSensor(TRIG1PIN, ECHO1PIN);
+SubHC_SR04 sideSensor(TRIG2PIN, ECHO2PIN);
+HC_SR04 *sensors[] = {&frontSensor, &sideSensor};
 
 void setup(){
-  sensors[0]->begin();
-  sensors[1]->begin();
+  frontOutPort.on();
+  delay(LED_BLINK_MS);
+  frontOutPort.off();
+  sideOutPort.on();
+  delay(LED_BLINK_MS);
+  sideOutPort.off();
+  delay(BETWEEN_MS);
   Serial.begin(9600);
   while(!Serial)
     continue;
-  sensors[0]->start();
-  sensors[1]->start();
-  // ledPort.set(HIGH);  delay(1000);  ledPort.set(LOW);  
+  objMtdPrint("Front 1 Range: ", frontRangeOutput, getRange);
+  delay(LED_BLINK_MS);
+  int range = frontRangeOutput.update(CM2MKS(FRONT_NEAR + 1));
+  valPrint("Front 2 Range: ", range);
+  delay(2 * LED_BLINK_MS);
+  range = frontRangeOutput.update(FRONT_NEAR - 1);
+  valPrint("Front 3 Range: ", range);
+  objMtdPrint("Side 1 Range: ", sideRangeOutput, getRange);
+  delay(LED_BLINK_MS);
+  range = sideRangeOutput.update(CM2MKS(SIDE_NEAR + 1));
+  valPrint("Side 2 Range: ", range);
+  delay(2 * LED_BLINK_MS);
+  range = sideRangeOutput.update(SIDE_FAR + 1);
+  valPrint("Side 3 Range: ", range);
+  frontSensor.begin();
+  objMtdPrint("Front Sensor begin. Intr: ", frontSensor, getInt);
+  sideSensor.begin();
+  objMtdPrint("Side Sensor begin. Intr: ", sideSensor, getInt);
+  frontSensor.start();
+  Serial.println("Front Sensor start.");
+  sideSensor.start();
+  Serial.println("Side Sensor start.");
 }
-unsigned long lastMs = millis();
-const unsigned int interval = INTERVAL;
+
 void loop(){
+  static unsigned long lastMs = millis();
+  const unsigned int interval = INTERVAL;
   unsigned long ms = millis();
+  static int lastRange = 0;
+  int range;
+  frontOutPort.update(ms);
+  sideOutPort.update(ms);
   if (ms > lastMs + interval) {
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < arraysizeof(sensors); ++i) {
       if (sensors[i]->isFinished()) {
         Serial.print(i == 0 ? "" : "                                ");
+        Serial.print(i == 0 ? "Front " : "Side");
         Serial.print("Sensor ");
-        Serial.print(i + 1);
         Serial.print("(interrupt:");
-        Serial.print(i == 0 ? sensor.getInt() : sensor2.getInt());
+        Serial.print(i == 0 ? frontSensor.getInt() : sideSensor.getInt());
         Serial.print(") is: ");
         Serial.print(sensors[i]->getRangeRaw() / 58);
-        Serial.println(" cm."); 
-        /*
-        if (i == 0) {
-          if (sensors[i]->getRangeRaw() < CM2MKS(NEAR1)){
-            ledPort.set(HIGH);
-          }
-          else {
-            ledPort.set(LOW);
-          }
-        } */
+        Serial.print(" cm. ");
+      if(i == 0) {
+        range = frontRangeOutput.update(frontSensor.getRangeRaw());
+        switch (range) {
+          case UNDER:
+            frontOutPort.on();
+            break;
+          case IN:
+            frontOutPort.off();
+        }
+      }
+      else {
+        range = sideRangeOutput.update(sideSensor.getRangeRaw());
+        switch (range) {
+          case UNDER:
+            sideOutPort.setInterval(NEAR_INTVL);
+            sideOutPort.on();
+            break;
+          case IN:
+            sideOutPort.off();
+            break;
+          case OVER:
+            sideOutPort.setInterval(FAR_INTVL);
+            sideOutPort.on();
+        }
+      }
+        //Serial.print("Updated is:");
+        //int updated = (i == 0 ? frontSensor.getUpdated() : sideSensor.getUpdated());
+        Serial.println();
         sensors[i]->start();
       }
     }
