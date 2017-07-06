@@ -11,7 +11,7 @@ class BlinkOutport : public Outport, public Update {
   unsigned long _last;
   public:
   BlinkOutport(int p, int interval=500, bool negative=false);
-  virtual int update(unsigned long ms);
+  virtual int update(unsigned long ms=millis());
   void setInterval(int interval);
 };
 

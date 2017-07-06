@@ -17,7 +17,7 @@
 #define FRONT_NEAR 30
 #define SIDE_NEAR 20
 #define SIDE_FAR 30
-
+#define SENS_INTVL 100
 #define INTERVAL 1000 //ms
 #define NEAR_INTVL 200
 #define FAR_INTVL 400
@@ -28,8 +28,8 @@ BlinkOutport sideOutPort(SIDE_LED_PIN);
 BlinkOutport frontOutPort(FRONT_LED_PIN, NEAR_INTVL);
 RangeOutput frontRangeOutput(CM2MKS(FRONT_NEAR));
 RangeOutput sideRangeOutput(CM2MKS(SIDE_NEAR), CM2MKS(SIDE_FAR));
-HC_SR04 frontSensor(TRIG1PIN, ECHO1PIN);
-SubHC_SR04 sideSensor(TRIG2PIN, ECHO2PIN);
+HC_SR04 frontSensor(TRIG1PIN, ECHO1PIN, SENS_INTVL);
+SubHC_SR04 sideSensor(TRIG2PIN, ECHO2PIN, SENS_INTVL);
 HC_SR04 *sensors[] = {&frontSensor, &sideSensor};
 
 void setup(){
@@ -67,56 +67,69 @@ void setup(){
   Serial.println("Side Sensor start.");
 }
 
+class Logger {
+  public:
+  static int logCount;
+  static unsigned long loop_count;
+  byte _sensors;
+  unsigned int frontRange, sideRange;// _rawRanges[2];
+  unsigned int _diff;
+  Logger():_sensors(0),frontRange(0),sideRange(0),_diff(0){}
+  void print() { Serial.print(loop_count),Serial.print(","); Serial.print(_sensors),Serial.print(","); Serial.print(frontRange/58),Serial.print(","); Serial.print(sideRange/58),Serial.print(","); Serial.println(_diff);}
+};
+unsigned long Logger::loop_count(0);
+int Logger::logCount(0);
+#define MAXLOG 500
+Update* updates[] = {&frontOutPort, &sideOutPort, &frontSensor, &sideSensor};
+
 void loop(){
-  static unsigned long lastMs = millis();
-  const unsigned int interval = INTERVAL;
-  unsigned long ms = millis();
-  static int lastRange = 0;
-  int range;
-  frontOutPort.update(ms);
-  sideOutPort.update(ms);
-  if (ms > lastMs + interval) {
-    for (int i = 0; i < arraysizeof(sensors); ++i) {
-      if (sensors[i]->isFinished()) {
-        Serial.print(i == 0 ? "" : "                                ");
-        Serial.print(i == 0 ? "Front " : "Side");
-        Serial.print("Sensor ");
-        Serial.print("(interrupt:");
-        Serial.print(i == 0 ? frontSensor.getInt() : sideSensor.getInt());
-        Serial.print(") is: ");
-        Serial.print(sensors[i]->getRangeRaw() / 58);
-        Serial.print(" cm. ");
-      if(i == 0) {
-        range = frontRangeOutput.update(frontSensor.getRangeRaw());
-        switch (range) {
-          case UNDER:
-            frontOutPort.on();
-            break;
-          case IN:
-            frontOutPort.off();
-        }
-      }
-      else {
-        range = sideRangeOutput.update(sideSensor.getRangeRaw());
-        switch (range) {
-          case UNDER:
-            sideOutPort.setInterval(NEAR_INTVL);
-            sideOutPort.on();
-            break;
-          case IN:
-            sideOutPort.off();
-            break;
-          case OVER:
-            sideOutPort.setInterval(FAR_INTVL);
-            sideOutPort.on();
-        }
-      }
-        //Serial.print("Updated is:");
-        //int updated = (i == 0 ? frontSensor.getUpdated() : sideSensor.getUpdated());
-        Serial.println();
-        sensors[i]->start();
-      }
+  int logCount = 0;
+  static unsigned long lastMs=0;
+  unsigned long ms = micros();
+  Logger logger;
+
+  for (int i = 0; i < arraysizeof(updates); ++i)
+    updates[i]->update(); // frontOutPort.update(ms);  sideOutPort.update(ms);  frontSensor.update(ms);  sideSensor.update(ms);
+  if (frontSensor.isFinished() && !frontSensor.isRead) {
+    if (logCount < MAXLOG) {
+      logger._sensors |= 1;
+      logger.frontRange = frontSensor.getRangeRaw();
     }
-    lastMs = ms;
+    //printSensor(0);
+    switch (frontRangeOutput.update(frontSensor.getRangeRaw())) {
+      case UNDER:
+        frontOutPort.on();
+        break;
+      case IN:
+        frontOutPort.off();
+    }
+    frontSensor.isRead = true;
   }
+  if (sideSensor.isFinished() && !sideSensor.isRead) {
+    if (logCount < MAXLOG) {
+      logger._sensors |= 2;
+      logger.sideRange = sideSensor.getRangeRaw();
+    }
+    //printSensor(1);
+    switch (sideRangeOutput.update(sideSensor.getRangeRaw())) {
+      case UNDER:
+        sideOutPort.setInterval(NEAR_INTVL);
+        sideOutPort.on();
+        break;
+      case IN:
+        sideOutPort.off();
+        break;
+      case OVER:
+        sideOutPort.setInterval(FAR_INTVL);
+        sideOutPort.on();
+    }
+    sideSensor.isRead = true;
+  }
+  if (logger.logCount < MAXLOG && logger._sensors > 0) {
+    logger._diff = ms - lastMs;
+    logger.print();
+    logger.logCount++;
+  }
+  lastMs = ms;
+  logger.loop_count++;
 }
